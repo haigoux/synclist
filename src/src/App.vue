@@ -1,9 +1,30 @@
 <script setup>
 import draggable from 'vuedraggable'
 import overlay from './components/overlay.vue';
+import editable_label from './components/editable_label.vue';
+import contextmenu from './components/contextmenu.vue';
+import taskgroup from './menus/taskgroup.vue';
 </script>
 
 <template>
+    <contextmenu v-if="_context_component" :top="_context_menu_top" :left="_context_menu_left" @close="_context_component = null">
+        <component :is="_context_component" />
+    </contextmenu>
+    <overlay v-if="_add_task_group_overlay" @close="_add_task_group_overlay = false" title="Add Task Group">
+        <span>
+            Task Group Name
+        </span>
+        <input type="text" placeholder="Enter text here" v-model="_taskInput" />
+        <span>
+            Task Group Color
+        </span>
+        <input type="color" v-model="_taskColor" />
+        <div class="b-row">
+            <button @click="list.push({ name: _taskInput, color: _taskColor, objects: [] }); _taskInput = ''; _taskColor = '#ffffff'; _add_task_group_overlay = false">
+                add task group
+            </button>
+        </div>
+    </overlay>
     <overlay v-if="_add_task_overlay" @close="_add_task_overlay = false" title="Add Task">
         <span>
             Task Details
@@ -15,18 +36,23 @@ import overlay from './components/overlay.vue';
         <select v-model="_selected_subject">
             <option v-for="subject in list" :key="subject.name" :value="subject">{{ subject.name }}</option>
         </select>
+        <div class="b-row">
+            <button @click="_selected_subject.objects.push({ value: _taskInput, completed: false }); _taskInput = ''; _add_task_overlay = false">
+                add task
+            </button>
+        </div>
     </overlay>
     <div class="navbar">
         <div class="header">
             <h1>TASK GROUPS</h1>
-            <button>
+            <button @click="_add_task_group_overlay = true">
                 <img src="@/assets/plus.png" />
             </button>
         </div>
         <draggable v-model="list" item-key="name" class="list" :animation="200">
             <template #item="{ element }">
                 <button class="draggable-item" @click="_selected_subject = element"
-                    :class="{ selected: _selected_subject === element }" @click.right.stop.prevent="_selected_editing = element; _selected_subject = element">
+                    :class="{ selected: _selected_subject === element }" @click.right.stop.prevent="contextClick($event,'taskgroup')">
                     <div class="left">
                         <div class="color-bar" :style="{ backgroundColor: element.color }"></div>
                         <span v-if="!(_selected_editing && _selected_subject === element)">
@@ -57,13 +83,13 @@ import overlay from './components/overlay.vue';
                         clear tasks
                     </span>
                 </button>
-                <button>
+                <button @click="markAll">
                     <img src="@/assets/mark.png" />
                     <span>
                         mark all
                     </span>
                 </button>
-                <button>
+                <button @click="unmarkAll">
                     <img src="@/assets/unmark.png" />
                     <span>
                         unmark all
@@ -74,10 +100,13 @@ import overlay from './components/overlay.vue';
                 <!-- sync indicator -->
             </div>
         </div>
-        <div class="object" v-if="_selected_subject" v-for="(obj, index) in _selected_subject.objects" :key="index">
-            <div class="object-item" :class="{ completed: obj.completed }">
-                <span>{{ obj.value }}</span>
-                <input type="checkbox" v-model="obj.completed" />
+        <div class="object-list">
+            <div class="object" v-if="_selected_subject" v-for="(obj, index) in _selected_subject.objects" :key="index">
+                <div class="object-item" :class="{ completed: obj.completed }">
+                    <!-- <span>{{ obj.value }}</span> -->
+                     <editable_label :value="obj.value" :placeholder="'Enter task name'" @update:value="obj.value = $event" />
+                    <input type="checkbox" v-model="obj.completed" />
+                </div>
             </div>
         </div>
     </div>
@@ -88,12 +117,25 @@ export default {
     props: {
 
     },
+    components: {
+        draggable,
+        overlay,
+        editable_label,
+        contextmenu,
+        taskgroup
+    },
     data() {
         return {
             _taskInput: '',
             _add_task_overlay: false,
             _selected_subject: null,
             _selected_editing: null,
+            _add_task_group_overlay: false,
+            _context_component: null,
+            _context_menu_top: 0,
+            _context_menu_left: 0,
+            _right_click_event_listener: null,
+
             list: [
                 {
                     "name": "Subject A",
@@ -167,10 +209,27 @@ export default {
     methods: {
         clearTaskGroupObjects(taskGroupIndex) {
             this.list[taskGroupIndex].objects = [];
+        },
+        markAll() {
+            if (!this._selected_subject) return;
+            this._selected_subject.objects.forEach(obj => {
+                obj.completed = true;
+            });
+        },
+        unmarkAll() {
+            if (!this._selected_subject) return;
+            this._selected_subject.objects.forEach(obj => {
+                obj.completed = false;
+            });
+        },
+        contextClick(event, component){
+            this._context_component = component;
+            this._context_menu_top = event.clientY;
+            this._context_menu_left = event.clientX;
         }
     },
     mounted() {
-
+        
     }
 }
 </script>
@@ -302,7 +361,7 @@ export default {
     width: 100%;
     height: 100%;
     overflow-y: hidden;
-    padding: 1rem;
+    // padding: 1rem;
     color: white;
     font-family: 'Montserrat', sans-serif;
     display: flex;
@@ -310,15 +369,15 @@ export default {
     align-items: flex-start;
     justify-content: flex-start;
     flex-wrap: wrap;
-    gap: 1rem;
 
     .actions{
         width: 100%;
         display: flex;
         flex-direction: row;
         align-items: center;
-        padding: 0 10px;
         justify-content: space-between;
+        background-color: #3e3c41;
+        padding: 1rem;
 
         .left{
             width: fit-content;
@@ -346,34 +405,43 @@ export default {
         }
     }
 
-    .object {
-        // flex: 1;
-        // margin-bottom: 1rem;
-        max-width: 50%;
+    .object-list {
         width: 100%;
-
-        .object-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.5rem;
-            border-radius: 4px;
-            background-color: rgba(255, 255, 255, 0.1);
-
-            &.completed {
-                text-decoration: line-through;
-                opacity: 0.6;
-            }
-
-            span {
-                flex-grow: 1;
-                margin-right: 1rem;
-            }
-
-            input[type="checkbox"] {
-                cursor: pointer;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1rem;
+        .object {
+            // flex: 1;
+            // margin-bottom: 1rem;
+            max-width: 50%;
+            width: 100%;
+    
+            .object-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.5rem;
+                border-radius: 4px;
+                background-color: rgba(255, 255, 255, 0.1);
+    
+                &.completed {
+                    text-decoration: line-through;
+                    opacity: 0.6;
+                }
+    
+                span {
+                    flex-grow: 1;
+                    margin-right: 1rem;
+                }
+    
+                input[type="checkbox"] {
+                    cursor: pointer;
+                }
             }
         }
     }
+
 }
 </style>

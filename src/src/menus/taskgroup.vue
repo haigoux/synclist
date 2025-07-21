@@ -3,7 +3,15 @@
 </script>
 
 <template>
-
+<button>
+    test1
+</button>
+<button>
+    test2
+</button>
+<button>
+    test3
+</button>
 </template>
 
 <script>

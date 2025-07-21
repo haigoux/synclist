@@ -95,7 +95,7 @@ export default {
             margin-bottom: 10px;
         }
 
-        input{
+        input[type="text"] {
             width: 100%;
             padding: 10px;
             border: none;
@@ -110,6 +110,7 @@ export default {
                 outline: 2px solid #27d4ff;
                 box-shadow: 0 0 5px rgb(39, 212, 255);
             }
+
         }
 
         select {
@@ -126,6 +127,28 @@ export default {
             &:focus {
                 outline: 2px solid #27d4ff;
                 box-shadow: 0 0 5px rgb(39, 212, 255);
+            }
+        }
+
+        .b-row{
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-end;
+            width: 100%;
+
+            button{
+                all: unset;
+                padding: 7px 12px;
+                background-color: #276bb9;
+                color: white;
+                border-radius: 4px;
+                font-size: 1rem;
+                
+                &:hover {
+                    background-color: #1f5a8f;
+                    cursor: pointer;
+                }
             }
         }
     }
